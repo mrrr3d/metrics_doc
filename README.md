@@ -22,7 +22,7 @@ In our architecture, each cluster needs to install Kepler and OTel Operator.
 
 [Deploy Kepler on Kind](https://sustainable-computing.io/installation/kepler/#deploying-kepler-on-a-local-kind-cluster) clusters.
 
-NOTE: We set `OPTS=""` here, because we will get Kepler metrics by using OTel Collector instead of using kube-prometheus directly.
+**NOTE**: We set `OPTS=""` here, because we will get Kepler metrics by using OTel Collector instead of using kube-prometheus directly.
 
 ```bash
 git clone --depth 1 git@github.com:sustainable-computing-io/kepler.git
@@ -281,7 +281,7 @@ roleRef:
 **NOTE**: Here we need to use hub’s OTel Collector’s grpc node port, and on cluster1 and cluster2 we should use the correct label.
 
 ```bash
-kubectl apply -f c1-collector.yaml
+kubectl apply -f otel-collector.yaml
 ```
 
 ```yaml
