@@ -339,7 +339,7 @@ spec:
         actions:
         - key: cluster
           # Set correct label value
-          value: c1
+          value: cluster1
           action: insert
           
     exporters:
