@@ -6,34 +6,9 @@ We will deploy in the [Kind](https://kind.sigs.k8s.io/) environment.
 
 ## Architecture
 
-Prepare 3 clusters: obs-hub, obs-c1, obs-c2.
+Prepare 3 clusters: Hub, Cluster1, Cluster2.
 
-```yaml
-+------------------------+                                  +------------------------+
-|         obs-c1         |                                  |         obs-c2         |
-|                        |                                  |                        |
-|   [Kepler Exporter]    |                                  |   [Kepler Exporter]    |
-|   [Kubelet cAdvisor]   |                                  |   [Kubelet cAdvisor]   |
-|           |            |                                  |           |            |
-|           v            |                                  |           v            |
-|   [OTel Collector]     |                                  |   [OTel Collector]     |
-+------------------------+                                  +------------------------+
-           |                                                              |
-           |         (Metrics)                       (Metrics)            |
-           +-----------------------------+--------------------------------+
-                                         |
-                                         v
-                           +---------------------------+
-                           |        Hub Cluster        |
-                           |                           |
-                           |    [Kepler Exporter]      |
-                           |    [Kubelet cAdvisor]     |
-                           |   [Hub OTel Collector]    |
-                           |             |             |
-                           |             v             |
-                           |     [Hub Prometheus]      |
-                           +---------------------------+
-```
+![architecture](assets/architecture.svg)
 
 ## Install kube-prometheus on Hub
 
@@ -60,6 +35,8 @@ kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releas
 
 After installing OTel Operator. Now we can create the OpenTelemetryCollector.
 
+We will create 2 pipelines, the first pipeline `metrics/from_hub` is to receive metrics from hub's Kepler exporter, kubelet cadvisor and federated learning metrics, the second pipeline `metrics/from_spokes` is to receive metrics from cluster1 and cluster2.
+
 ```bash
 kubectl apply -f hub-collector.yaml
 ```
@@ -74,12 +51,57 @@ spec:
   image: otel/opentelemetry-collector:latest
   config:
     receivers:
-      otlp:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'kepler-pods'
+              kubernetes_sd_configs:
+                - role: pod
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_namespace]
+                  action: keep
+                  regex: kepler
+
+                - source_labels: [__address__, __meta_kubernetes_pod_container_port_number]
+                  action: replace
+                  regex: ([^:]+):(?:\d+);(\d+)
+                  replacement: $${1}:$${2}
+                  target_label: __address__
+
+                - source_labels: [__meta_kubernetes_node_name]
+                  action: replace
+                  target_label: instance
+            - job_name: 'kubernetes-cadvisor-central'
+              kubernetes_sd_configs:
+                - role: node
+              scheme: https
+              authorization:
+                credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              tls_config:
+                ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                insecure_skip_verify: true
+              
+              relabel_configs:
+                - action: labelmap
+                  regex: __meta_kubernetes_node_label_(.+)
+                - target_label: __address__
+                  replacement: kubernetes.default.svc:443
+                - source_labels: [__meta_kubernetes_node_name]
+                  regex: (.+)
+                  target_label: __metrics_path__
+                  replacement: /api/v1/nodes/$${1}/proxy/metrics/cadvisor
+      otlp/hub:
         protocols:
           grpc:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
+      otlp/spokes:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4327
+          http:
+            endpoint: 0.0.0.0:4328
 
     processors:
       attributes:
@@ -94,13 +116,14 @@ spec:
 
     service:
       pipelines:
-        metrics:
-          receivers: [otlp]
+        metrics/from_hub:
+          receivers: [otlp/hub, prometheus]
           processors: [attributes]
           exporters: [prometheus]
+        metrics/from_spokes:
+          receivers: [otlp/spokes]
+          exporters: [prometheus]
 ```
-
-This will let the collector listen on ports 4317 and 4318 to receive metrics.
 
 ### Change the service type to NodePort
 
