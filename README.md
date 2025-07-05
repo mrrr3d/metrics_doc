@@ -60,9 +60,10 @@ kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releas
 
 After installing OTel Operator. Now we can create the OpenTelemetryCollector.
 
-`kubectl apply -f hub-collector.yaml`
+```bash
+kubectl apply -f hub-collector.yaml
+```
 
-*TODO: FIX*
 ```yaml
 # hub-collector.yaml
 apiVersion: opentelemetry.io/v1beta1
@@ -105,13 +106,17 @@ This will let the collector listen on ports 4317 and 4318 to receive metrics.
 
 Because the managed clusters will send metrics to the hub cluster, we need to change the OTel collector service to NodePort.
 
-`kubectl patch svc hub-collector -n default -p '{"spec":{"type":"NodePort"}}'`
+```bash
+kubectl patch svc hub-collector -n default -p '{"spec":{"type":"NodePort"}}'
+```
 
 ### Create ServiceMonitor
 
 This will let the kube-prometheus find OTel Collector’s exporter.
 
-`kubectl apply -f otel-collector-smon.yaml`
+```bash
+kubectl apply -f otel-collector-smon.yaml
+```
 
 ```yaml
 # otel-collector-smon.yaml
