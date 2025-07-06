@@ -6,6 +6,8 @@ This document provides a comprehensive guide for deploying a multi-cluster monit
 
 ### **1.1. Architecture Overview**
 
+![architecture](assets/architecture.svg)
+
 The deployment is based on a hub-and-spoke topology consisting of three [Kind](https://kind.sigs.k8s.io/) clusters:
 
   * **Hub Cluster**: The central cluster responsible for aggregating and storing monitoring data from all clusters.
