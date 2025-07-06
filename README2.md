@@ -39,7 +39,7 @@ Kepler is responsible for collecting node power consumption data, and the OTel O
 
 #### **2.2.1. Install Kepler**
 
-Follow these steps to deploy Kepler on each cluster.
+Follow these steps to [deploy Kepler](https://sustainable-computing.io/installation/kepler/#deploying-kepler-on-a-local-kind-cluster) on each cluster.
 
 **NOTE**: We set `OPTS=""` during the manifest generation to prevent Kepler from being scraped directly by Prometheus. Instead, we will configure the OTel Collector to scrape Kepler's metrics.
 
@@ -56,7 +56,7 @@ cd ..
 
 #### **2.2.2. Install OpenTelemetry Operator**
 
-The OTel Operator depends on `cert-manager` for certificate management.
+The [OTel Operator](https://opentelemetry.io/docs/platforms/kubernetes/operator/#getting-started) depends on `cert-manager` for certificate management.
 
 ```bash
 # 1. Install cert-manager
