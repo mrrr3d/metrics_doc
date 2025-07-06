@@ -350,6 +350,13 @@ spec:
   image: otel/opentelemetry-collector-contrib:latest
   config:
     receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
       prometheus:
         config:
           scrape_configs:
@@ -408,7 +415,7 @@ spec:
     service:
       pipelines:
         metrics:
-          receivers: [prometheus]
+          receivers: [otlp, prometheus]
           processors: [attributes]
           exporters: [otlp]
 ```
