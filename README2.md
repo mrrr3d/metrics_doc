@@ -431,3 +431,25 @@ kubectl apply -f spoke-collector.yaml
 ## **4. Verification**
 
 Once all components are deployed, you can verify the setup by accessing the Prometheus UI on your Hub Cluster. Execute a query for a Kepler metric, such as `kepler_container_joules_total`. The results should show data with distinct `cluster` labels (`hub`, `cluster1`, `cluster2`), confirming that metrics are being successfully collected and aggregated from all clusters.
+
+Here are some examples:
+
+* **`rate(kepler_container_joules_total{cluster="hub"}[5m])`**
+
+![kepler_container_joules_total](assets/kepler_container_joules_total.png)
+
+* **`rate(container_cpu_usage_seconds_total{cluster="cluster1"}[5m])`**
+
+![container_cpu_usage_seconds_total](assets/container_cpu_usage_seconds_total.png)
+
+* **`container_cpu_usage_seconds_total{exported_namespcae="open-cluster-management", cluster="cluster2"}`**
+
+![container_cpu_usage_seconds_total2](assets/container_cpu_usage_seconds_total2.png)
+
+* **`container_cpu_usage_seconds_total{exported_pod=~"federated-learning-sample-.*"}`**
+
+![container_cpu_usage_seconds_total-fl-sample_graph](assets/container_cpu_usage_seconds_total-fl-sample_graph.png)
+
+* **`{exported_job="unknown_service:fl_sidecar"}`**
+
+![fl_sidecar_metrics](assets/fl_sidecar_metrics.png)
