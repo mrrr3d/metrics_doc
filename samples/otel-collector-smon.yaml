@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  # Deploy this to the same namespace where Prometheus is running
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      operator.opentelemetry.io/collector-service-type: base
+  namespaceSelector:
+    matchNames:
+      - default
+  endpoints:
+    - port: prometheus
+      path: /metrics
+      interval: 15s

@@ -1,0 +1,93 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: hub
+spec:
+  image: otel/opentelemetry-collector:latest
+  config:
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            # Scrape config for Kepler pods.
+            - job_name: 'kepler-pods'
+              kubernetes_sd_configs:
+                - role: pod
+              relabel_configs:
+                # Keep only pods in the 'kepler' namespace.
+                - source_labels: [__meta_kubernetes_namespace]
+                  action: keep
+                  regex: kepler
+                # Standard relabeling to construct the scrape address from pod IP and port.
+                - source_labels: [__address__, __meta_kubernetes_pod_container_port_number]
+                  action: replace
+                  regex: ([^:]+):(?:\d+);(\d+)
+                  replacement: $${1}:$${2}
+                  target_label: __address__
+                # Use the node name as the 'instance' label for clarity.
+                - source_labels: [__meta_kubernetes_node_name]
+                  action: replace
+                  target_label: instance
+
+            # Scrape config for cAdvisor metrics from all Kubernetes nodes.
+            - job_name: 'kubernetes-cadvisor-central'
+              kubernetes_sd_configs:
+                - role: node
+              scheme: https
+              authorization:
+                credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              tls_config:
+                ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                insecure_skip_verify: true
+              relabel_configs:
+                - action: labelmap
+                  regex: __meta_kubernetes_node_label_(.+)
+                # Target the Kubernetes API server to proxy the cAdvisor metrics endpoint.
+                - target_label: __address__
+                  replacement: kubernetes.default.svc:443
+                # Dynamically set the metrics path for each node.
+                - source_labels: [__meta_kubernetes_node_name]
+                  regex: (.+)
+                  target_label: __metrics_path__
+                  replacement: /api/v1/nodes/$${1}/proxy/metrics/cadvisor
+
+      # OTLP receiver for metrics sent from local sources (e.g., federated learning) in the Hub.
+      otlp/hub:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      
+      # OTLP receiver for metrics sent from remote spoke clusters.
+      otlp/spokes:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4327
+          http:
+            endpoint: 0.0.0.0:4328
+
+    processors:
+      # Adds a 'cluster' attribute to distinguish metrics originating from the Hub.
+      attributes:
+        actions:
+        - key: cluster
+          value: hub
+          action: insert
+
+    exporters:
+      # Exposes all collected metrics on a Prometheus-scrapeable endpoint.
+      prometheus:
+        endpoint: "0.0.0.0:9464"
+
+    service:
+      pipelines:
+        # Pipeline for metrics generated within the Hub cluster.
+        metrics/from_hub:
+          receivers: [otlp/hub, prometheus]
+          processors: [attributes]
+          exporters: [prometheus]
+        # Pipeline for metrics received from spoke clusters.
+        metrics/from_spokes:
+          receivers: [otlp/spokes]
+          exporters: [prometheus]
