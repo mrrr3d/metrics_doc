@@ -79,7 +79,7 @@ The OTel Collector on the Hub Cluster serves two primary functions:
 
 The OpenTelemetry Collector requires specific RBAC permissions to interact with the Kubernetes API. This access is crucial for discovering resources like pods and nodes (service discovery) and for proxying requests to internal metrics endpoints like cAdvisor.
 
-**`hub-otel-collector-rbac.yaml`**
+**`hub-collector-rbac.yaml`**
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -117,7 +117,7 @@ roleRef:
 Apply the configuration:
 
 ```bash
-kubectl apply -f hub-otel-collector-rbac.yaml
+kubectl apply -f hub-collector-rbac.yaml
 ```
 
 #### **2.3.2. Create the OTel Collector Instance**
@@ -245,7 +245,7 @@ kubectl patch svc hub-collector -n default -p '{"spec":{"type":"NodePort"}}'
 
 This `ServiceMonitor` resource allows the Kube-Prometheus Operator on the Hub to automatically discover and scrape the metrics exposed by our OTel Collector.
 
-**`otel-collector-smon.yaml`**
+**`hub-collector-smon.yaml`**
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -270,7 +270,7 @@ spec:
 Apply the configuration:
 
 ```bash
-kubectl apply -f otel-collector-smon.yaml
+kubectl apply -f hub-collector-smon.yaml
 ```
 
 -----
@@ -291,7 +291,7 @@ The collector on each spoke is responsible for scraping local metrics and export
 
 Spoke collectors require the same API access as the Hub collector to discover and scrape local targets.
 
-**`otel-collector-rbac.yaml`**
+**`spoke-collector-rbac.yaml`**
 
 ```yaml
 # This is similar to the hub RBAC, but note the different ServiceAccount name
@@ -329,7 +329,7 @@ roleRef:
 Apply the configuration:
 
 ```bash
-kubectl apply -f otel-collector-rbac.yaml
+kubectl apply -f spoke-collector-rbac.yaml
 ```
 
 #### **3.2.2. Create the OTel Collector Instance**
@@ -339,7 +339,7 @@ kubectl apply -f otel-collector-rbac.yaml
 1.  **`processors.attributes.value`**: Change this to the unique name of the current cluster (e.g., `cluster1` or `cluster2`). This is essential for distinguishing metrics in Prometheus.
 2.  **`exporters.otlp.endpoint`**: Replace the placeholder with the **IP address of your Hub Cluster's node** and the **gRPC NodePort** you recorded in section [2.3.3](#233-expose-the-collector-service).
 
-**`otel-collector.yaml`**
+**`spoke-collector.yaml`**
 
 ```yaml
 apiVersion: opentelemetry.io/v1beta1
@@ -416,7 +416,7 @@ spec:
 Apply the modified configuration:
 
 ```bash
-kubectl apply -f otel-collector.yaml
+kubectl apply -f spoke-collector.yaml
 ```
 
 -----
