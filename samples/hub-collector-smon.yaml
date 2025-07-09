@@ -10,7 +10,7 @@ spec:
       operator.opentelemetry.io/collector-service-type: base
   namespaceSelector:
     matchNames:
-      - default
+      - monitoring
   endpoints:
     - port: prometheus
       path: /metrics

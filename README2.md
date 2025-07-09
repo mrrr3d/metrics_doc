@@ -27,17 +27,25 @@ Before proceeding, ensure your environment is configured with the following:
 
 This section details the setup for the central Hub Cluster.
 
-### **2.1. Install Kube-Prometheus**
+### **2.1. Create Namespace**
+
+Firstly, please create a namespace `monitoring`, we will deploy OTel Collector in this namespace.
+
+```bash
+kubectl create namespace monitoring
+```
+
+### **2.2. Install Kube-Prometheus**
 
 We begin by deploying the Prometheus Operator, which provides a full-fledged monitoring solution. It will be used on the Hub Cluster to store and query the collected metrics.
 
 For detailed installation instructions, please refer to the official documentation: [Deploy the Prometheus Operator](https://sustainable-computing.io/installation/kepler/#deploy-the-prometheus-operator).
 
-### **2.2. Install Kepler and OpenTelemetry Operator**
+### **2.3. Install Kepler and OpenTelemetry Operator**
 
 Kepler is responsible for collecting node power consumption data, and the OTel Operator simplifies the management of the OTel Collector. These components must be installed on **all** clusters (Cluster1, Cluster2 and Hub).
 
-#### **2.2.1. Install Kepler**
+#### **2.3.1. Install Kepler**
 
 Follow these steps to [deploy Kepler](https://sustainable-computing.io/installation/kepler/#deploying-kepler-on-a-local-kind-cluster) on each cluster.
 
@@ -54,7 +62,7 @@ kubectl apply -f _output/generated-manifest/deployment.yaml
 cd ..
 ```
 
-#### **2.2.2. Install OpenTelemetry Operator**
+#### **2.3.2. Install OpenTelemetry Operator**
 
 The [OTel Operator](https://opentelemetry.io/docs/platforms/kubernetes/operator/#getting-started) depends on `cert-manager` for certificate management.
 
@@ -68,14 +76,14 @@ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/do
 kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/latest/download/opentelemetry-operator.yaml
 ```
 
-### **2.3. Configure the Hub OTel Collector**
+### **2.4. Configure the Hub OTel Collector**
 
 The OTel Collector on the Hub Cluster serves two primary functions:
 
 1.  Scrapes local metrics from its own Kepler and cAdvisor endpoints.
 2.  Acts as a receiver for metrics sent from the Spoke Clusters.
 
-#### **2.3.1. Grant RBAC Permissions**
+#### **2.4.1. Grant RBAC Permissions**
 
 The OpenTelemetry Collector requires specific RBAC permissions to interact with the Kubernetes API. This access is crucial for discovering resources like pods and nodes (service discovery) and for proxying requests to internal metrics endpoints like cAdvisor.
 
@@ -120,7 +128,7 @@ Apply the configuration:
 kubectl apply -f hub-collector-rbac.yaml
 ```
 
-#### **2.3.2. Create the OTel Collector Instance**
+#### **2.4.2. Create the OTel Collector Instance**
 
 This configuration defines two distinct pipelines:
 
@@ -134,6 +142,7 @@ apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
   name: hub
+  namespace: monitoring
 spec:
   image: otel/opentelemetry-collector:latest
   config:
@@ -231,7 +240,7 @@ Apply the configuration:
 kubectl apply -f hub-collector.yaml
 ```
 
-#### **2.3.3. Expose the Collector Service**
+#### **2.4.3. Expose the Collector Service**
 
 To allow the Spoke Clusters to send metrics to the Hub, we must expose the OTel Collector's service externally. We will change the service type to `NodePort`.
 
@@ -241,7 +250,7 @@ kubectl patch svc hub-collector -n default -p '{"spec":{"type":"NodePort"}}'
 
 **Action Required**: After running this command, take note of the `NodePort` assigned to the gRPC receiver port (`4327`). This port will be needed for the Spoke Cluster configuration.
 
-#### **2.3.4. Create a ServiceMonitor**
+#### **2.4.4. Create a ServiceMonitor**
 
 This `ServiceMonitor` resource allows the Kube-Prometheus Operator on the Hub to automatically discover and scrape the metrics exposed by our OTel Collector.
 
@@ -260,7 +269,7 @@ spec:
       operator.opentelemetry.io/collector-service-type: base
   namespaceSelector:
     matchNames:
-      - default
+      - monitoring
   endpoints:
     - port: prometheus
       path: /metrics
@@ -279,15 +288,23 @@ kubectl apply -f hub-collector-smon.yaml
 
 The following steps must be performed on **both** Spoke Clusters (Cluster1 and Cluster2).
 
-### **3.1. Install Kepler and OpenTelemetry Operator**
+### **3.1. Create Namespace**
+
+Firstly, please create a namespace `monitoring`, we will deploy OTel Collector in this namespace.
+
+```bash
+kubectl create namespace monitoring
+```
+
+### **3.2. Install Kepler and OpenTelemetry Operator**
 
 This process is identical to the Hub Cluster setup. Please refer to section **[2.2](#22-install-kepler-and-opentelemetry-operator)**.
 
-### **3.2. Configure the Spoke OTel Collector**
+### **3.3. Configure the Spoke OTel Collector**
 
 The collector on each spoke is responsible for scraping local metrics and exporting them via OTLP to the Hub Cluster.
 
-#### **3.2.1. Grant RBAC Permissions**
+#### **3.3.1. Grant RBAC Permissions**
 
 Spoke collectors require the same API access as the Hub collector to discover and scrape local targets.
 
@@ -332,7 +349,7 @@ Apply the configuration:
 kubectl apply -f spoke-collector-rbac.yaml
 ```
 
-#### **3.2.2. Create the OTel Collector Instance**
+#### **3.3.2. Create the OTel Collector Instance**
 
 **Action Required**: Before applying this file, you must modify two critical values:
 
@@ -346,6 +363,7 @@ apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
   name: otel
+  namespace: monitoring
 spec:
   image: otel/opentelemetry-collector-contrib:latest
   config:

@@ -2,6 +2,7 @@ apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
   name: otel
+  namespace: monitoring
 spec:
   image: otel/opentelemetry-collector-contrib:latest
   config:
